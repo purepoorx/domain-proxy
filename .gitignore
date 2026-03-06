@@ -1,0 +1,24 @@
+# 编译产物
+domain-proxy
+domain-proxy.exe
+domain-proxy-*
+
+# 证书（含私钥，绝不能提交）
+certs/
+
+# 实际配置（可能含敏感的转发规则）
+config/config.yaml
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/

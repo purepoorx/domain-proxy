@@ -1,0 +1,10 @@
+proxy:
+  addr: "127.0.0.1:1080"   # HTTP + SOCKS5 共用端口，自动识别协议
+
+tls:
+  ca_cert: "./certs/ca.crt"
+  ca_key: "./certs/ca.key"
+
+rules:
+  - source: "api.telegram.org"
+    target: "your-proxy.example.com"
