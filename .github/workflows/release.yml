@@ -45,19 +45,33 @@ jobs:
         run: |
           output="domain-proxy-${{ matrix.suffix }}${{ matrix.ext }}"
           go build -trimpath -ldflags="-s -w" -o "$output" .
-          echo "ARTIFACT=$output" >> "$GITHUB_ENV"
 
-      - name: Compress (tar.gz for unix, zip for windows)
+      - name: Compress
         run: |
           if [ "${{ matrix.goos }}" = "windows" ]; then
-            zip "domain-proxy-${{ matrix.suffix }}.zip" "${{ env.ARTIFACT }}"
-            echo "ARCHIVE=domain-proxy-${{ matrix.suffix }}.zip" >> "$GITHUB_ENV"
+            zip "domain-proxy-${{ matrix.suffix }}.zip" "domain-proxy-${{ matrix.suffix }}${{ matrix.ext }}"
           else
-            tar czf "domain-proxy-${{ matrix.suffix }}.tar.gz" "${{ env.ARTIFACT }}"
-            echo "ARCHIVE=domain-proxy-${{ matrix.suffix }}.tar.gz" >> "$GITHUB_ENV"
+            tar czf "domain-proxy-${{ matrix.suffix }}.tar.gz" "domain-proxy-${{ matrix.suffix }}${{ matrix.ext }}"
           fi
 
-      - name: Upload to Release
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: domain-proxy-${{ matrix.suffix }}
+          path: domain-proxy-${{ matrix.suffix }}.*
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release and upload assets
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.ARCHIVE }}
+          files: artifacts/*
