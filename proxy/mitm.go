@@ -54,7 +54,7 @@ func (m *MITMProxy) HandleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, needMITM := m.rewriter.Rewrite(host)
+	_, _, needMITM := m.rewriter.Rewrite(host)
 	if needMITM {
 		go m.doMITM(clientConn, host, port)
 	} else {
@@ -91,7 +91,7 @@ func (m *MITMProxy) doMITM(clientConn net.Conn, originalHost, port string) {
 			return
 		}
 
-		targetHost, _ := m.rewriter.Rewrite(originalHost)
+		targetHost, injectHeader, _ := m.rewriter.Rewrite(originalHost)
 
 		if req.URL.Host == "" {
 			req.URL.Host = originalHost
@@ -99,6 +99,9 @@ func (m *MITMProxy) doMITM(clientConn net.Conn, originalHost, port string) {
 		req.URL.Scheme = "https"
 		req.URL.Host = targetHost
 		req.Host = targetHost
+		if injectHeader {
+			req.Header.Set("X-Target-Host", originalHost)
+		}
 
 		slog.Info("MITM forwarding",
 			"method", req.Method,

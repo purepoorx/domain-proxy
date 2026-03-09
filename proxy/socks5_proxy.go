@@ -63,7 +63,7 @@ func (s *SOCKS5Handler) HandleConn(conn net.Conn) {
 	s.sendReply(conn, repSuccess)
 
 	if port == "443" {
-		if _, rewritten := s.rewriter.Rewrite(host); rewritten {
+		if _, _, rewritten := s.rewriter.Rewrite(host); rewritten {
 			s.mitm.HandleMITMConn(conn, host, port)
 			return
 		}

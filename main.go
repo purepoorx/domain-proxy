@@ -70,9 +70,9 @@ func runProxy(args []string) {
 	ruleMap := cfg.BuildRuleMap()
 	rewriter := proxy.NewRewriter(ruleMap)
 
-	slog.Info("loaded rewrite rules", "count", len(ruleMap))
-	for src, dst := range ruleMap {
-		slog.Info("rule", "source", src, "target", dst)
+	slog.Info("loaded rewrite rules", "count", len(ruleMap), "defaultTarget", cfg.DefaultTarget)
+	for src, rt := range ruleMap {
+		slog.Info("rule", "source", src, "target", rt.Host, "injectHeader", rt.InjectHeader)
 	}
 
 	srv := proxy.NewServer(cfg.Proxy.Addr, certStore, rewriter)

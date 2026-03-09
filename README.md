@@ -9,6 +9,7 @@
 - **SOCKS5 代理**：完整实现 RFC 1928 协议，支持无认证模式
 - **MITM 拦截**：动态签发 TLS 证书，解密 HTTPS 流量并进行域名重写
 - **域名转发**：通过 YAML 配置文件定义转发规则，将源域名的请求转发到目标域名
+- **默认目标代理**：规则中省略 `target` 时自动使用可配置的默认目标，并注入 `X-Target-Host` 请求头，适用于统一反代网关场景
 - **证书管理**：CLI 命令一键生成 CA 根证书，运行时动态签发域名证书并缓存
 - **高性能**：Go 原生并发（goroutine），单二进制部署，跨平台编译
 
@@ -27,6 +28,31 @@ your-proxy.example.com 反代到真正的 api.telegram.org
 ```
 
 这样应用程序完全无需修改代码，只需设置代理即可。
+
+### 场景二：统一反代网关
+
+如果你有一个统一的反代网关（如 `domain-proxy.okkkk.tk`），可以根据 `X-Target-Host` 请求头动态转发到不同的源站。此时只需在规则中省略 `target`：
+
+```yaml
+default_target: "domain-proxy.okkkk.tk"
+
+rules:
+  - source: "api.openai.com"     # 自动转发到 domain-proxy.okkkk.tk
+  - source: "api.anthropic.com"  # 自动转发到 domain-proxy.okkkk.tk
+```
+
+代理会自动注入 `X-Target-Host` 请求头，网关通过该头部识别真实目标：
+
+```
+应用程序请求 api.openai.com
+    ↓ 经过代理
+代理转发到 domain-proxy.okkkk.tk
+  + 注入请求头 X-Target-Host: api.openai.com
+    ↓
+domain-proxy.okkkk.tk 读取 X-Target-Host，反代到 api.openai.com
+    ↓
+响应原路返回给应用程序
+```
 
 ## 目录
 
@@ -180,9 +206,14 @@ tls:
   ca_cert: "./certs/ca.crt"
   ca_key: "./certs/ca.key"
 
+# 当规则没有指定 target 时，使用此默认目标（可选）
+# 默认值: "domain-proxy.okkkk.tk"
+default_target: "domain-proxy.okkkk.tk"
+
 # 域名转发规则
 # source: 客户端请求的原始域名
 # target: 实际转发到的目标域名（你的反代服务）
+#         省略 target 时使用 default_target，并自动注入 X-Target-Host 请求头
 rules:
   - source: "api.telegram.org"
     target: "your-proxy.example.com"
@@ -192,12 +223,13 @@ rules:
 
 ```yaml
 rules:
+  # 显式指定 target，直接转发
   - source: "api.telegram.org"
     target: "your-proxy.example.com"
+
+  # 省略 target，使用 default_target，自动注入 X-Target-Host
   - source: "api.openai.com"
-    target: "openai-proxy.example.com"
-  - source: "raw.githubusercontent.com"
-    target: "ghproxy.example.com"
+  - source: "api.anthropic.com"
 ```
 
 **未在规则中列出的域名不会被拦截**，代理会直接透传（标准代理行为），不会解密其 HTTPS 流量。
@@ -720,20 +752,23 @@ tls:
   # 默认值: "./certs/ca.key"
   ca_key: "./certs/ca.key"
 
+# 当规则没有指定 target 时，使用此默认目标
+# 默认值: "domain-proxy.okkkk.tk"
+# 使用默认目标的规则会自动注入 X-Target-Host 请求头
+default_target: "domain-proxy.okkkk.tk"
+
 # 域名转发规则列表
 # 只有匹配到规则的域名才会进行 MITM 拦截和转发
 # 其他域名会直接透传（标准代理行为，不解密 HTTPS）
 rules:
     # source: 客户端请求中的原始域名
     # target: 实际要转发到的目标域名（你的反代服务地址）
+    #         省略 target 时使用 default_target，并注入 X-Target-Host 请求头
   - source: "api.telegram.org"
     target: "your-proxy.example.com"
 
-  # 可以添加任意多条规则
-  # - source: "api.openai.com"
-  #   target: "openai-proxy.example.com"
-  # - source: "raw.githubusercontent.com"
-  #   target: "ghproxy.example.com"
+  # 省略 target —— 转发到 default_target，注入 X-Target-Host: api.openai.com
+  - source: "api.openai.com"
 ```
 
 ### 默认值
@@ -751,6 +786,7 @@ rules:
 | `proxy.addr` | `127.0.0.1:1080` |
 | `tls.ca_cert` | `./certs/ca.crt` |
 | `tls.ca_key` | `./certs/ca.key` |
+| `default_target` | `domain-proxy.okkkk.tk` |
 
 ## CLI 命令参考
 

@@ -5,6 +5,14 @@ tls:
   ca_cert: "./certs/ca.crt"
   ca_key: "./certs/ca.key"
 
+# 当规则没有指定 target 时，使用此默认目标（可选，默认值: domain-proxy.okkkk.tk）
+default_target: "domain-proxy.okkkk.tk"
+
 rules:
+  # 显式指定 target，直接转发，不注入 X-Target-Host
   - source: "api.telegram.org"
     target: "your-proxy.example.com"
+
+  # 只指定 source，target 自动使用 default_target
+  # 请求头会注入 X-Target-Host: api.openai.com
+  - source: "api.openai.com"

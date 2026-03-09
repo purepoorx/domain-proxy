@@ -9,7 +9,12 @@ import (
 
 type Rule struct {
 	Source string `yaml:"source"`
-	Target string `yaml:"target"`
+	Target string `yaml:"target,omitempty"`
+}
+
+type RewriteTarget struct {
+	Host         string
+	InjectHeader bool // true = inject X-Target-Host with original source
 }
 
 type TLSConfig struct {
@@ -22,9 +27,10 @@ type ProxyConfig struct {
 }
 
 type Config struct {
-	Proxy ProxyConfig `yaml:"proxy"`
-	TLS   TLSConfig   `yaml:"tls"`
-	Rules []Rule      `yaml:"rules"`
+	Proxy         ProxyConfig `yaml:"proxy"`
+	TLS           TLSConfig   `yaml:"tls"`
+	DefaultTarget string      `yaml:"default_target"`
+	Rules         []Rule      `yaml:"rules"`
 }
 
 func Load(path string) (Config, error) {
@@ -47,14 +53,27 @@ func Load(path string) (Config, error) {
 	if cfg.TLS.CAKey == "" {
 		cfg.TLS.CAKey = "./certs/ca.key"
 	}
+	if cfg.DefaultTarget == "" {
+		cfg.DefaultTarget = "domain-proxy.okkkk.tk"
+	}
 
 	return cfg, nil
 }
 
-func (c Config) BuildRuleMap() map[string]string {
-	m := make(map[string]string, len(c.Rules))
+func (c Config) BuildRuleMap() map[string]RewriteTarget {
+	m := make(map[string]RewriteTarget, len(c.Rules))
 	for _, r := range c.Rules {
-		m[r.Source] = r.Target
+		if r.Target == "" {
+			m[r.Source] = RewriteTarget{
+				Host:         c.DefaultTarget,
+				InjectHeader: true,
+			}
+		} else {
+			m[r.Source] = RewriteTarget{
+				Host:         r.Target,
+				InjectHeader: false,
+			}
+		}
 	}
 	return m
 }

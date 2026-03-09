@@ -54,9 +54,12 @@ func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (p *HTTPProxy) handlePlainHTTP(w http.ResponseWriter, r *http.Request) {
 	host := r.URL.Hostname()
-	if target, rewritten := p.rewriter.Rewrite(host); rewritten {
+	if target, injectHeader, rewritten := p.rewriter.Rewrite(host); rewritten {
 		r.URL.Host = target
 		r.Host = target
+		if injectHeader {
+			r.Header.Set("X-Target-Host", host)
+		}
 	}
 
 	transport := &http.Transport{
