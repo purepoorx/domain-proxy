@@ -60,7 +60,11 @@ func NewStore(certPath, keyPath string) (*Store, error) {
 
 func (s *Store) GetOrCreateCert(hostname string) (*tls.Certificate, error) {
 	if cached, ok := s.cache.Load(hostname); ok {
-		return cached.(*tls.Certificate), nil
+		cert := cached.(*tls.Certificate)
+		// Check expiration: renew if it expires within the next hour or already expired
+		if cert.Leaf == nil || time.Now().Add(1*time.Hour).Before(cert.Leaf.NotAfter) {
+			return cert, nil
+		}
 	}
 
 	cert, err := s.issueCert(hostname)
@@ -106,6 +110,12 @@ func (s *Store) issueCert(hostname string) (*tls.Certificate, error) {
 	tlsCert := &tls.Certificate{
 		Certificate: [][]byte{certDER},
 		PrivateKey:  privKey,
+	}
+
+	// Parse the leaf certificate so we can check its expiration time later
+	leaf, err := x509.ParseCertificate(certDER)
+	if err == nil {
+		tlsCert.Leaf = leaf
 	}
 
 	return tlsCert, nil
